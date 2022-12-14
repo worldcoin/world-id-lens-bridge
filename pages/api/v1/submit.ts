@@ -11,22 +11,30 @@ import {
   PhoneSignalProof,
   SignalType,
 } from "../../../types";
-import { ethers } from "ethers";
+import { ethers, Wallet } from "ethers";
+import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+import { exit } from "process";
+
+const LENS_API_URL = "https://api.lens.dev";
+const STAGING_LENS_API_URL =
+  "https://staging-api-social-mumbai.lens.crtlkey.com/";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (!process.env.LENS_API_WEBHOOK) {
-    throw new Error("Improperly configured. LENS_API_WEBHOOK is not set.");
-  }
-
   if (!req.method || !["POST", "OPTIONS"].includes(req.method)) {
     return errorNotAllowed(req.method, res);
   }
 
-  const { signal_type, nullifier_hash, proof_payload, action_id, signal } =
-    req.body as ExpectedRequestPayload;
+  const {
+    signal_type,
+    nullifier_hash,
+    proof_payload,
+    action_id,
+    signal,
+    is_production,
+  } = req.body as ExpectedRequestPayload;
 
   for (const attr of [
     "signal_type",
@@ -43,6 +51,16 @@ export default async function handler(
   // ANCHOR: Verify phone signal
   if (signal_type === SignalType.Phone) {
     const { timestamp, signature } = proof_payload as PhoneSignalProof;
+
+    // Check timestamp is at most 10 minutes old
+    if (Math.abs(Date.now() - timestamp) > 10 * 60 * 1000) {
+      return errorValidation(
+        "invalid_timestamp",
+        "This nullifier is stale. Proofs must be submitted within 10 minutes.",
+        "proof_payload",
+        res
+      );
+    }
 
     if (!timestamp || !signature) {
       return errorValidation(
@@ -113,18 +131,56 @@ export default async function handler(
   }
 
   // ANCHOR: Send webhook to Lens API
-  await fetch(process.env.LENS_API_WEBHOOK, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.LENS_API_SECRET}`,
-    },
-    body: JSON.stringify({
-      nullifier_hash,
-      signal_type,
-      signal_metadata: signal,
-    }),
+  const apolloClient = new ApolloClient({
+    uri: is_production ? LENS_API_URL : STAGING_LENS_API_URL,
+    cache: new InMemoryCache(),
   });
+
+  const mutation = gql`
+    mutation IdKitPhoneVerifyWebhook(
+      $request: IdKitPhoneVerifyWebhookRequest!
+    ) {
+      idKitPhoneVerifyWebhook(request: $request)
+    }
+  `;
+
+  const lensSignalType = signal_type === SignalType.Phone ? "PHONE" : "ORB";
+  let response;
+  try {
+    response = await apolloClient.mutate({
+      mutation,
+      variables: {
+        request: {
+          sharedSecret: process.env.LENS_API_SECRET,
+          worldcoin: {
+            nullifierHash: nullifier_hash,
+            signal,
+            signalType: lensSignalType,
+          },
+        },
+      },
+      errorPolicy: "ignore",
+    });
+  } catch (e) {
+    console.error(
+      "Error sending webhook to Lens API: ",
+      e,
+      JSON.stringify((e as Record<string, any>)?.networkError?.result)
+    );
+  }
+
+  if (response?.data.idKitPhoneVerifyWebhook !== null) {
+    if (response) {
+      console.error("Webhook to Lens API is not as expected: ", response.data);
+    }
+
+    return errorValidation(
+      "error_recording_proof",
+      "We could not record the proof. Please try again or contact the Lens Team.",
+      null,
+      res
+    );
+  }
 
   res.status(204).end();
 }

@@ -19,4 +19,5 @@ export interface ExpectedRequestPayload {
   proof_payload: PhoneSignalProof | OrbSignalProof;
   action_id: string;
   signal: string;
+  is_production?: boolean;
 }
