@@ -11,9 +11,8 @@ import {
   PhoneSignalProof,
   SignalType,
 } from "../../../types";
-import { ethers, Wallet } from "ethers";
+import { ethers } from "ethers";
 import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
-import { exit } from "process";
 
 const LENS_API_URL = "https://api.lens.dev";
 const STAGING_LENS_API_URL =
