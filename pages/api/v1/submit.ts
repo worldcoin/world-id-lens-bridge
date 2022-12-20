@@ -19,6 +19,11 @@ const LENS_API_URL = "https://api.lens.dev";
 const STAGING_LENS_API_URL =
   "https://staging-api-social-mumbai.lens.crtlkey.com/";
 
+enum APIResponses {
+  ALREADY_VERIFIED = "ALREADY_VERIFIED",
+  SUCCESS = "SUCCESS",
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -171,18 +176,29 @@ export default async function handler(
     );
   }
 
-  if (response?.data.idKitPhoneVerifyWebhook !== null) {
-    if (response) {
-      console.error("Webhook to Lens API is not as expected: ", response.data);
-    }
+  if (response?.data.idKitPhoneVerifyWebhook === APIResponses.SUCCESS) {
+    return res.status(204).end();
+  }
 
+  if (
+    response?.data.idKitPhoneVerifyWebhook === APIResponses.ALREADY_VERIFIED
+  ) {
     return errorValidation(
-      "error_recording_proof",
-      "We could not record the proof. Please try again or contact the Lens Team.",
+      "already_verified",
+      "You have already verified a profile with this phone number.",
       null,
       res
     );
   }
 
-  res.status(204).end();
+  if (response) {
+    console.error("Webhook to Lens API is not as expected: ", response.data);
+  }
+
+  return errorValidation(
+    "error_recording_proof",
+    "We could not record the proof. Please try again or contact the Lens Team.",
+    null,
+    res
+  );
 }
