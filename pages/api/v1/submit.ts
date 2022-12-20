@@ -11,9 +11,9 @@ import {
   PhoneSignalProof,
   SignalType,
 } from "../../../types";
-import { ethers, Wallet } from "ethers";
+import { ethers } from "ethers";
 import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
-import { exit } from "process";
+import { runCors } from "../../../cors";
 
 const LENS_API_URL = "https://api.lens.dev";
 const STAGING_LENS_API_URL =
@@ -23,6 +23,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  await runCors(req, res);
+
   if (!req.method || !["POST", "OPTIONS"].includes(req.method)) {
     return errorNotAllowed(req.method, res);
   }
