@@ -1,0 +1,31 @@
+{
+  "name": "world-id-lens-bridge-infrastructure",
+  "version": "0.1.0",
+  "scripts": {
+    "deploy": "cdk deploy --concurrency=10",
+    "deploy:no-execute": "cdk deploy --no-execute",
+    "diff": "cdk diff",
+    "format": "ofmt ./src",
+    "lint": "ofmt --lint ./src && olint ./src",
+    "typecheck": "tsc --skipLibCheck --noEmit"
+  },
+  "devDependencies": {
+    "@ottofeller/eslint-config-ofmt": "1.5.2",
+    "@ottofeller/ofmt": "1.5.2",
+    "@ottofeller/prettier-config-ofmt": "1.5.2",
+    "ts-node": "9.0.0",
+    "tsconfig-paths": "3.14.1",
+    "typescript": "4.6.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.47.0",
+    "constructs": "10.1.140"
+  },
+  "peerDependencies": {
+    "aws-cdk": "2.21.1"
+  },
+  "prettier": "@ottofeller/prettier-config-ofmt",
+  "eslintConfig": {
+    "extends": "@ottofeller/eslint-config-ofmt/eslint.quality.cjs"
+  }
+}
